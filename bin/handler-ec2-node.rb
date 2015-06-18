@@ -97,17 +97,21 @@ require 'fog'
 class Ec2Node < Sensu::Handler
   def filter; end
 
+  def client_name
+    @event['client']['name']
+  end
+
   def handle
     # #YELLOW
     unless ec2_node_exists? # rubocop:disable UnlessElse
       delete_sensu_client!
     else
-      puts "[EC2 Node] #{@event['client']['name']} appears to exist in EC2"
+      puts "[EC2 Node] #{client_name} appears to exist in EC2"
     end
   end
 
   def delete_sensu_client!
-    response = api_request(:DELETE, '/clients/' + @event['client']['name']).code
+    response = api_request(:DELETE, '/clients/' + client_name).code
     deletion_status(response)
   end
 
@@ -116,7 +120,7 @@ class Ec2Node < Sensu::Handler
     filtered_instances = ec2.servers.select { |s| states.include?(s.state) }
     instance_ids = filtered_instances.map(&:id)
     instance_ids.each do |id|
-      return true if id == @event['client']['name']
+      return true if id == client_name
     end
     false # no match found, node doesn't exist
   end
@@ -136,13 +140,13 @@ class Ec2Node < Sensu::Handler
   def deletion_status(code)
     case code
     when '202'
-      puts "[EC2 Node] 202: Successfully deleted Sensu client: #{node}"
+      puts "[EC2 Node] 202: Successfully deleted Sensu client: #{client_name}"
     when '404'
-      puts "[EC2 Node] 404: Unable to delete #{node}, doesn't exist!"
+      puts "[EC2 Node] 404: Unable to delete #{client_name}, doesn't exist!"
     when '500'
-      puts "[EC2 Node] 500: Miscellaneous error when deleting #{node}"
+      puts "[EC2 Node] 500: Miscellaneous error when deleting #{client_name}"
     else
-      puts "[EC2 Node] #{res}: Completely unsure of what happened!"
+      puts "[EC2 Node] #{code}: Completely unsure of what happened!"
     end
   end
 
